@@ -209,7 +209,6 @@ func (p prometheus) GetNamedMetersOverTime(meters []string, start, end time.Time
 		go func(metric string) {
 			parsedResp := monitoring.Metric{MetricName: metric}
 			begin := time.Now()
-			fmt.Println(makeMeterExpr(metric, *queryOptions))
 			value, _, err := p.client.QueryRange(prometheusCtx, makeMeterExpr(metric, *queryOptions), timeRange)
 			end := time.Now()
 			timeElapsed := end.Unix() - begin.Unix()

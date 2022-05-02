@@ -137,6 +137,7 @@ func (s *service) CreateCluster(clusterPost *cluster.Post) (*cluster.Cluster, er
 	if err != nil {
 		return nil, err
 	}
+
 	clientSet, err := s.GetKubernetesClientSet(clusterData.Name)
 	if err != nil {
 		return nil, err

@@ -3,6 +3,7 @@ package cmd
 import (
 	"io"
 	cloudutil "muti-kube/cmd/app/cmd/util"
+	"muti-kube/pkg/util/logger"
 	"regexp"
 	"strings"
 
@@ -36,6 +37,8 @@ func NewCloudCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 	}
 	cmds.AddCommand(newCmdVersion(out))
 	cmds.AddCommand(newCmdServer())
+	// init log plugin
+	logger.Init()
 	return cmds
 }
 

@@ -2,6 +2,7 @@ package apis
 
 import (
 	"muti-kube/models/common"
+	"muti-kube/pkg/util/logger"
 	"net/http"
 	"strconv"
 
@@ -42,4 +43,14 @@ func (b *Base) PageOK(c *gin.Context, result interface{}, count int, page *commo
 		res.Msg = msg
 	}
 	c.JSON(http.StatusOK, res.ReturnOK())
+}
+
+func (b *Base)Error(c *gin.Context, code int, err error, msg string) {
+	var res common.Response
+	res.Msg = err.Error()
+	if msg != "" {
+		res.Msg = msg
+	}
+	logger.Error(res.Msg)
+	c.JSON(http.StatusOK, res.ReturnError(code))
 }

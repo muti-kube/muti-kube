@@ -3,6 +3,7 @@ package cluster
 import (
 	"muti-kube/apis"
 	"muti-kube/models/cluster"
+	"muti-kube/pkg/consts"
 	"muti-kube/pkg/service"
 	clusterService "muti-kube/pkg/service/cluster"
 	"strings"
@@ -29,6 +30,7 @@ func (cc *Cluster) GetClusters(c *gin.Context) {
 	pagination := cc.GetPagination(c)
 	clusters, err := cc.cs.GetClusters(service.WithPagination(pagination))
 	if err != nil {
+		cc.Error(c,consts.ERRGETCLUSTERS,err,"")
 		return
 	}
 	cc.PageOK(c, clusters, len(clusters), pagination, "")
@@ -38,6 +40,7 @@ func (cc *Cluster) GetCluster(c *gin.Context) {
 	clusterID := c.Param("clusterID")
 	clusterData, err := cc.cs.GetCluster(clusterID)
 	if err != nil {
+		cc.Error(c,consts.ERRGETCLUSTER,err,"")
 		return
 	}
 	cc.OK(c, clusterData, "")
@@ -46,10 +49,12 @@ func (cc *Cluster) GetCluster(c *gin.Context) {
 func (cc *Cluster) CreateCluster(c *gin.Context) {
 	clusterPost := &cluster.Post{}
 	if err := c.ShouldBindJSON(clusterPost); err != nil {
+		cc.Error(c,consts.ERRCREATECLUSTER,err,"")
 		return
 	}
 	clusterData, err := cc.cs.CreateCluster(clusterPost)
 	if err != nil {
+		cc.Error(c,consts.ERRCREATECLUSTER,err,"")
 		return
 	}
 	cc.OK(c, clusterData, "")
@@ -61,6 +66,7 @@ func (cc *Cluster) GetNodeMetrics(c *gin.Context) {
 	metrics := c.Query("metrics")
 	nodeMetric, err := cc.cs.GetNodeMetric(strings.Split(metrics, ","), clusterID, nodeName)
 	if err != nil {
+		cc.Error(c,consts.ERRGETNODEMETRICS,err,"")
 		return
 	}
 	cc.OK(c, nodeMetric, "")
