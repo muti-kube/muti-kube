@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"muti-kube/apis"
+	"muti-kube/models/cluster"
 	"muti-kube/pkg/service"
 	clusterService "muti-kube/pkg/service/cluster"
 	"strings"
@@ -30,16 +31,28 @@ func (cc *Cluster) GetClusters(c *gin.Context) {
 	if err != nil {
 		return
 	}
-	cc.PageOK(c, clusters, 0, pagination, "")
+	cc.PageOK(c, clusters, len(clusters), pagination, "")
 }
 
 func (cc *Cluster) GetCluster(c *gin.Context) {
 	clusterID := c.Param("clusterID")
-	cluster, err := cc.cs.GetCluster(clusterID)
+	clusterData, err := cc.cs.GetCluster(clusterID)
 	if err != nil {
 		return
 	}
-	cc.OK(c, cluster, "")
+	cc.OK(c, clusterData, "")
+}
+
+func (cc *Cluster) CreateCluster(c *gin.Context) {
+	clusterPost := &cluster.Post{}
+	if err := c.ShouldBindJSON(clusterPost); err != nil {
+		return
+	}
+	clusterData, err := cc.cs.CreateCluster(clusterPost)
+	if err != nil {
+		return
+	}
+	cc.OK(c, clusterData, "")
 }
 
 func (cc *Cluster) GetNodeMetrics(c *gin.Context) {

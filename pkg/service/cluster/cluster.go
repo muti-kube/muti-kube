@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"muti-kube/models/cluster"
+	"muti-kube/pkg/api/cluster/v1alpha1"
 	clusterv1alpha1 "muti-kube/pkg/client/cluster/clientset/versioned/typed/cluster/v1alpha1"
 	"muti-kube/pkg/client/k8s"
 	baseService "muti-kube/pkg/service"
@@ -13,6 +15,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"k8s.io/apimachinery/pkg/util/rand"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,10 +35,10 @@ type service struct {
 type Interface interface {
 	GetClusters(opts ...baseService.OpOption) ([]*cluster.Cluster, error)
 	GetCluster(clusterID string, opts ...baseService.OpOption) (*cluster.Cluster, error)
+	CreateCluster(clusterPost *cluster.Post) (*cluster.Cluster, error)
 	GetKubernetesClientSet(clusterID string) (k8s.Client, error)
 	GetNodesByClusterID(clusterID string) (*v1.NodeList, error)
 	GetNodeMetric(metrics []string, clusterID string, nodeName string) ([]monitoring.Metric, error)
-	CreateCluster()
 }
 
 func NewClusterService() (Interface, error) {
@@ -117,8 +121,34 @@ func (s *service) GetCluster(clusterID string, opts ...baseService.OpOption) (*c
 	}, nil
 }
 
-func (s *service) CreateCluster() {
-
+func (s *service) CreateCluster(clusterPost *cluster.Post) (*cluster.Cluster, error) {
+	randomStr := rand.String(6)
+	clusterName := fmt.Sprintf("cluster-%s", randomStr)
+	clusterData, err := s.clustersClient.Create(s.ctx, &v1alpha1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: clusterName,
+		},
+		Spec: v1alpha1.ClusterSpec{
+			DisplayName:   clusterPost.DisplayName,
+			KubeConfig:    clusterPost.KubeConfig,
+			PrometheusURL: clusterPost.PrometheusURL,
+		},
+	}, metav1.CreateOptions{})
+	if err != nil {
+		return nil, err
+	}
+	clientSet, err := s.GetKubernetesClientSet(clusterData.Name)
+	if err != nil {
+		return nil, err
+	}
+	nodes, err := s.getClusterNodeInfo(clientSet)
+	if err != nil {
+		return nil, err
+	}
+	return &cluster.Cluster{
+		Cluster:  *clusterData,
+		NodeList: nodes,
+	}, nil
 }
 
 // GetKubernetesClientSet Get the kubernetes native clientSet
