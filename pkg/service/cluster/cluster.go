@@ -12,6 +12,8 @@ import (
 	"muti-kube/pkg/client/k8s"
 	baseService "muti-kube/pkg/service"
 	"muti-kube/pkg/simple/client/monitoring"
+	"muti-kube/pkg/util"
+	"muti-kube/pkg/util/logger"
 	"os"
 	"path/filepath"
 	"time"
@@ -33,7 +35,7 @@ type service struct {
 }
 
 type Interface interface {
-	GetClusters(opts ...baseService.OpOption) ([]*cluster.Cluster, error)
+	GetClusters(opts ...baseService.OpOption) ([]*cluster.Cluster,*int64, error)
 	GetCluster(clusterID string, opts ...baseService.OpOption) (*cluster.Cluster, error)
 	CreateCluster(clusterPost *cluster.Post) (*cluster.Cluster, error)
 	GetKubernetesClientSet(clusterID string) (k8s.Client, error)
@@ -79,27 +81,34 @@ func newService() (*service, error) {
 }
 
 // GetClusters Obtain the cluster list and brief information about the nodes in the cluster
-func (s *service) GetClusters(opts ...baseService.OpOption) ([]*cluster.Cluster, error) {
+func (s *service) GetClusters(opts ...baseService.OpOption) ([]*cluster.Cluster,*int64, error) {
+	op := baseService.OpGet(opts...)
 	clusterSlice := make([]*cluster.Cluster, 0)
 	list, err := s.clustersClient.List(s.ctx, metav1.ListOptions{})
 	if err != nil {
-		return nil, err
+		return nil,nil, err
 	}
-	for _, item := range list.Items {
+	count := util.ConvertToInt64Ptr(len(list.Items))
+	offset,end := baseService.CommonPaginate(list.Items,
+		(op.Pagination.Page-1)*op.Pagination.PageSize,
+		op.Pagination.PageSize)
+	listItem := list.Items[offset:end]
+	for _, item := range listItem {
 		clientSet, err := s.GetKubernetesClientSet(item.Name)
 		if err != nil {
-			return nil, err
+			return nil,nil, err
 		}
 		nodes, err := s.getClusterNodeInfo(clientSet)
 		if err != nil {
-			return nil, err
+			logger.Warn(err)
+			continue
 		}
 		clusterSlice = append(clusterSlice, &cluster.Cluster{
 			Cluster:  item,
 			NodeList: nodes,
 		})
 	}
-	return clusterSlice, nil
+	return clusterSlice,count,nil
 }
 
 func (s *service) GetCluster(clusterID string, opts ...baseService.OpOption) (*cluster.Cluster, error) {
@@ -137,8 +146,7 @@ func (s *service) CreateCluster(clusterPost *cluster.Post) (*cluster.Cluster, er
 	if err != nil {
 		return nil, err
 	}
-
-	clientSet, err := s.GetKubernetesClientSet(clusterData.Name)
+	clientSet, err := s.GetKubernetesClientSet(clusterName)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +166,7 @@ func (s *service) GetKubernetesClientSet(clusterID string) (k8s.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	clusterItem, err := s.clustersClient.Get(s.ctx, "cluster-1", metav1.GetOptions{})
+	clusterItem, err := s.clustersClient.Get(s.ctx, clusterID, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}

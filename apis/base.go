@@ -32,8 +32,7 @@ func (b *Base) OK(c *gin.Context, data interface{}, msg string) {
 	c.JSON(http.StatusOK, res.ReturnOK())
 }
 
-// 分页数据处理
-func (b *Base) PageOK(c *gin.Context, result interface{}, count int, page *common.Pagination, msg string) {
+func (b *Base) PageOK(c *gin.Context, result interface{}, count *int64, page *common.Pagination, msg string) {
 	var res common.PageResponse
 	res.Data.List = result
 	res.Data.Count = count

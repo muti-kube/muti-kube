@@ -1,8 +1,8 @@
 package cluster
 
 import (
-	"fmt"
 	"muti-kube/apis/cluster"
+	"muti-kube/pkg/util/logger"
 
 	"github.com/gin-gonic/gin"
 )
@@ -10,7 +10,8 @@ import (
 func RegisterClusterRouter(v1alpha1 *gin.RouterGroup) {
 	clusterApi, err := cluster.NewCluster()
 	if err != nil {
-		fmt.Println(err)
+		logger.Error(err)
+		return
 	}
 	v1alpha1.GET("/clusters", clusterApi.GetClusters)
 	v1alpha1.GET("/clusters/:clusterID", clusterApi.GetCluster)

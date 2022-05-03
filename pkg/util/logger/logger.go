@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"fmt"
 	"os"
 	"time"
 
@@ -27,6 +28,7 @@ var levelMap = map[string]zapcore.Level{
 func Init() {
 	var syncWriters []zapcore.WriteSyncer
 	level := getLoggerLevel(viper.GetString(`settings.log.level`))
+	fmt.Println(fmt.Sprintf("日志文件：%s",viper.GetString(`settings.log.path`)))
 	fileConfig := &lumberjack.Logger{
 		Filename:   viper.GetString(`settings.log.path`),    // 日志文件名
 		MaxSize:    viper.GetInt(`settings.log.maxsize`),    // 日志文件大小

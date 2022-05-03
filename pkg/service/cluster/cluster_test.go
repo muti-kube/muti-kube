@@ -3,7 +3,6 @@ package cluster
 import (
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,7 +19,7 @@ func TestService_GetClusters(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	fmt.Println(clusters)
+	t.Log(clusters)
 }
 
 func TestService_GetKubernetesClientSet(t *testing.T) {
@@ -56,7 +55,7 @@ func TestService_GetNodesByClusterID(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	fmt.Println(nodes)
+	t.Log(nodes)
 }
 
 func TestService_GetNodeMetric(t *testing.T) {
@@ -70,5 +69,5 @@ func TestService_GetNodeMetric(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	fmt.Println(metric)
+	t.Log(metric)
 }

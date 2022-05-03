@@ -28,12 +28,12 @@ func NewCluster() (*Cluster, error) {
 
 func (cc *Cluster) GetClusters(c *gin.Context) {
 	pagination := cc.GetPagination(c)
-	clusters, err := cc.cs.GetClusters(service.WithPagination(pagination))
+	clusters,count, err := cc.cs.GetClusters(service.WithPagination(pagination))
 	if err != nil {
 		cc.Error(c,consts.ERRGETCLUSTERS,err,"")
 		return
 	}
-	cc.PageOK(c, clusters, len(clusters), pagination, "")
+	cc.PageOK(c, clusters, count, pagination, "")
 }
 
 func (cc *Cluster) GetCluster(c *gin.Context) {

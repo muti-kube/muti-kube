@@ -112,7 +112,6 @@ func (p prometheus) GetNamedMetricsOverTime(metrics []string, start, end time.Ti
 		wg.Add(1)
 		go func(metric string) {
 			parsedResp := monitoring.Metric{MetricName: metric}
-			fmt.Println(makeExpr(metric, *opts))
 			value, _, err := p.client.QueryRange(context.Background(), makeExpr(metric, *opts), timeRange)
 			if err != nil {
 				parsedResp.Error = err.Error()

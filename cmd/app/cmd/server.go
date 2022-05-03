@@ -1,7 +1,8 @@
 package cmd
 
 import (
-	"fmt"
+	"muti-kube/cmd/app/config"
+	"muti-kube/pkg/util/logger"
 	"muti-kube/router"
 	"os"
 	"os/signal"
@@ -10,16 +11,27 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	configFile   string
+)
+
+func serverPreRun() {
+	config.LoadConfigFile(configFile)
+}
+
 func newCmdServer() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "muti-kube server",
-		Short:   "Start API muti-kube",
-		Example: "muti-kube config/settings.yml",
+		Use:     "server",
+		Short:   "Start muti-kube API Server",
+		Example: "muti-kube config/config.yml",
+		PreRun: func(cmd *cobra.Command, args []string) {
+			serverPreRun()
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run()
 		},
 	}
-	cmd.Flags().StringP("output", "o", "", "Output format; available options are 'yaml', 'json' and 'short'")
+	cmd.PersistentFlags().StringVarP(&configFile, "config", "c", "config/config.yml", "Start muti-kube with provided configuration file")
 	return cmd
 }
 
@@ -28,7 +40,7 @@ func run() error {
 	gin.SetMode(gin.DebugMode)
 	go func() {
 		if err := r.Run(":9000"); err != nil {
-			fmt.Println(err)
+			logger.Error()
 		}
 	}()
 	quit := make(chan os.Signal)

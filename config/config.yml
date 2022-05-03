@@ -1,0 +1,11 @@
+settings:
+  log:
+    compress: 1
+    consolestdout: 1
+    filestdout: 0
+    level: debug
+    localtime: 1
+    maxage: 30
+    maxbackups: 300
+    maxsize: 10240
+    path: /var/log/muti-kube/api.log
