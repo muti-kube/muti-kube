@@ -44,7 +44,7 @@ func (b *Base) PageOK(c *gin.Context, result interface{}, count *int64, page *co
 	c.JSON(http.StatusOK, res.ReturnOK())
 }
 
-func (b *Base)Error(c *gin.Context, code int, err error, msg string) {
+func (b *Base) Error(c *gin.Context, code int, err error, msg string) {
 	var res common.Response
 	res.Msg = err.Error()
 	if msg != "" {

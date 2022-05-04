@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	configFile   string
+	configFile string
 )
 
 func serverPreRun() {

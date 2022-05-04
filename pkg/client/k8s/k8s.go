@@ -10,11 +10,13 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
 )
 
 type Client interface {
 	Kubernetes() kubernetes.Interface
 	Prometheus() promresourcesclient.Interface
+	Metrics() metrics.Interface
 	Config() *rest.Config
 }
 
@@ -29,6 +31,7 @@ type kubernetesClient struct {
 	config        *rest.Config
 	prometheus    promresourcesclient.Interface
 	apiextensions apiextensionsclient.Interface
+	metricsClient metrics.Interface
 }
 
 // NewKubernetesClientOrDie creates KubernetesClient and panic if there is an error
@@ -104,9 +107,11 @@ func NewKubernetesClientWithConfig(config *rest.Config) (client Client, err erro
 	if k.apiextensions, err = apiextensionsclient.NewForConfig(config); err != nil {
 		return
 	}
-	k.prometheus, err = promresourcesclient.NewForConfig(config)
-	if err != nil {
-		return nil, err
+	if k.prometheus, err = promresourcesclient.NewForConfig(config); err != nil {
+		return
+	}
+	if k.metricsClient, err = metrics.NewForConfig(config); err != nil {
+		return
 	}
 	k.config = config
 	client = &k
@@ -123,4 +128,8 @@ func (k *kubernetesClient) Config() *rest.Config {
 
 func (k *kubernetesClient) Prometheus() promresourcesclient.Interface {
 	return k.prometheus
+}
+
+func (k *kubernetesClient) Metrics() metrics.Interface {
+	return k.metricsClient
 }

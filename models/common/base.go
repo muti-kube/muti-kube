@@ -8,7 +8,7 @@ type Pagination struct {
 
 type Page struct {
 	List      interface{} `json:"list"`
-	Count     *int64         `json:"count"`
+	Count     *int64      `json:"count"`
 	PageIndex int         `json:"page_size"`
 	PageSize  int         `json:"page_size"`
 }

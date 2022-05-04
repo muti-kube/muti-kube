@@ -1,8 +1,8 @@
-# kube-cloud
+# muti-kube
 
 ## brief introduction
 
-kube-cloud is a Cloud native multi-cloud management system，It is being developed at a fast pace
+muti-kube is a Cloud native multi-cloud management system，It is being developed at a fast pace
 
 If you were lucky enough to see me
 

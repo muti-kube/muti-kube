@@ -18,11 +18,11 @@ import (
 	"path/filepath"
 	"time"
 
-	"k8s.io/apimachinery/pkg/util/rand"
-
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
@@ -35,7 +35,7 @@ type service struct {
 }
 
 type Interface interface {
-	GetClusters(opts ...baseService.OpOption) ([]*cluster.Cluster,*int64, error)
+	GetClusters(opts ...baseService.OpOption) ([]*cluster.Cluster, *int64, error)
 	GetCluster(clusterID string, opts ...baseService.OpOption) (*cluster.Cluster, error)
 	CreateCluster(clusterPost *cluster.Post) (*cluster.Cluster, error)
 	GetKubernetesClientSet(clusterID string) (k8s.Client, error)
@@ -81,34 +81,66 @@ func newService() (*service, error) {
 }
 
 // GetClusters Obtain the cluster list and brief information about the nodes in the cluster
-func (s *service) GetClusters(opts ...baseService.OpOption) ([]*cluster.Cluster,*int64, error) {
+func (s *service) GetClusters(opts ...baseService.OpOption) ([]*cluster.Cluster, *int64, error) {
 	op := baseService.OpGet(opts...)
 	clusterSlice := make([]*cluster.Cluster, 0)
 	list, err := s.clustersClient.List(s.ctx, metav1.ListOptions{})
 	if err != nil {
-		return nil,nil, err
+		return nil, nil, err
 	}
 	count := util.ConvertToInt64Ptr(len(list.Items))
-	offset,end := baseService.CommonPaginate(list.Items,
+	offset, end := baseService.CommonPaginate(list.Items,
 		(op.Pagination.Page-1)*op.Pagination.PageSize,
 		op.Pagination.PageSize)
 	listItem := list.Items[offset:end]
 	for _, item := range listItem {
 		clientSet, err := s.GetKubernetesClientSet(item.Name)
 		if err != nil {
-			return nil,nil, err
+			return nil, nil, err
 		}
 		nodes, err := s.getClusterNodeInfo(clientSet)
 		if err != nil {
 			logger.Warn(err)
+			clusterSlice = append(clusterSlice, &cluster.Cluster{
+				Cluster: item,
+				Status:  baseService.SERVICEABNORMAL,
+			})
 			continue
 		}
+		var cpuCapacity int64
+		var cpuUsage int64
+		var memoryCapacity int64
+		var memoryUsage int64
+		for _, node := range nodes.Items {
+			nodeUsage, err := s.getNodeUsage(clientSet, node.Name)
+			if err != nil {
+				logger.Warn(err)
+				continue
+			}
+			cpuCapacity += node.Status.Capacity.Cpu().ScaledValue(resource.Milli)
+			cpuUsage += nodeUsage.Cpu().ScaledValue(resource.Milli)
+			// unit M
+			memoryUsage += nodeUsage.Memory().ScaledValue(resource.Mega)
+			memoryCapacity += node.Status.Capacity.Memory().ScaledValue(resource.Mega)
+		}
+		if cpuCapacity == 0 {
+			cpuCapacity = 1
+		}
+		if memoryCapacity == 0 {
+			memoryCapacity = 1
+		}
 		clusterSlice = append(clusterSlice, &cluster.Cluster{
-			Cluster:  item,
-			NodeList: nodes,
+			Cluster:           item,
+			Status:            baseService.SERVICENORMAL,
+			CPUCapacity:       cpuCapacity,
+			MemoryCapacity:    memoryCapacity,
+			CPUUsage:          cpuUsage,
+			MemoryUsage:       memoryUsage,
+			CPUUtilisation:    float64(cpuUsage) / float64(cpuCapacity),
+			MemoryUtilisation: float64(memoryUsage) / float64(memoryCapacity),
 		})
 	}
-	return clusterSlice,count,nil
+	return clusterSlice, count, nil
 }
 
 func (s *service) GetCluster(clusterID string, opts ...baseService.OpOption) (*cluster.Cluster, error) {
@@ -223,7 +255,20 @@ func (s *service) getClusterNodeInfo(client k8s.Client) (*v1.NodeList, error) {
 	return client.Kubernetes().CoreV1().Nodes().List(s.ctx, metav1.ListOptions{})
 }
 
-func (s *service) GetNodeMetric(metrics []string, clusterID string, nodeName string) ([]monitoring.Metric, error) {
+func (s *service) getNodeUsage(client k8s.Client, nodeName string) (usage v1.ResourceList, err error) {
+	metrics, err := client.Metrics().MetricsV1beta1().NodeMetricses().Get(s.ctx, nodeName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return metrics.Usage, nil
+}
+
+// GetNodeMetric Pass in the cluster ID, node name, and monitoring indicator to obtain the monitoring timing data of the node
+func (s *service) GetNodeMetric(metrics []string,
+								clusterID string,
+								nodeName string,
+								) ([]monitoring.Metric, error) {
+
 	clusterData, err := s.GetCluster(clusterID)
 	if err != nil {
 		return nil, err
