@@ -72,7 +72,7 @@ func (bs *base) GetPrometheusClient(prometheusURL string) (monitoring.Interface,
 		return nil, err
 	}
 	if resp == nil {
-		return nil,errors.New(fmt.Sprintf("error connent %s",prometheusURL))
+		return nil, errors.New(fmt.Sprintf("error connent %s", prometheusURL))
 	}
 	prometheusOptions := prometheus.NewPrometheusOptions()
 	prometheusOptions.Endpoint = prometheusURL

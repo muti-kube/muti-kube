@@ -28,9 +28,9 @@ func NewCluster() (*Cluster, error) {
 
 func (cc *Cluster) GetClusters(c *gin.Context) {
 	pagination := cc.GetPagination(c)
-	clusters,count, err := cc.cs.GetClusters(service.WithPagination(pagination))
+	clusters, count, err := cc.cs.GetClusters(service.WithPagination(pagination))
 	if err != nil {
-		cc.Error(c,consts.ERRGETCLUSTERS,err,"")
+		cc.Error(c, consts.ERRGETCLUSTERS, err, "")
 		return
 	}
 	cc.PageOK(c, clusters, count, pagination, "")
@@ -40,7 +40,7 @@ func (cc *Cluster) GetCluster(c *gin.Context) {
 	clusterID := c.Param("clusterID")
 	clusterData, err := cc.cs.GetCluster(clusterID)
 	if err != nil {
-		cc.Error(c,consts.ERRGETCLUSTER,err,"")
+		cc.Error(c, consts.ERRGETCLUSTER, err, "")
 		return
 	}
 	cc.OK(c, clusterData, "")
@@ -49,12 +49,12 @@ func (cc *Cluster) GetCluster(c *gin.Context) {
 func (cc *Cluster) CreateCluster(c *gin.Context) {
 	clusterPost := &cluster.Post{}
 	if err := c.ShouldBindJSON(clusterPost); err != nil {
-		cc.Error(c,consts.ERRCREATECLUSTER,err,"")
+		cc.Error(c, consts.ERRCREATECLUSTER, err, "")
 		return
 	}
 	clusterData, err := cc.cs.CreateCluster(clusterPost)
 	if err != nil {
-		cc.Error(c,consts.ERRCREATECLUSTER,err,"")
+		cc.Error(c, consts.ERRCREATECLUSTER, err, "")
 		return
 	}
 	cc.OK(c, clusterData, "")
@@ -66,7 +66,7 @@ func (cc *Cluster) GetNodeMetrics(c *gin.Context) {
 	metrics := c.Query("metrics")
 	nodeMetric, err := cc.cs.GetNodeMetric(strings.Split(metrics, ","), clusterID, nodeName)
 	if err != nil {
-		cc.Error(c,consts.ERRGETNODEMETRICS,err,"")
+		cc.Error(c, consts.ERRGETNODEMETRICS, err, "")
 		return
 	}
 	cc.OK(c, nodeMetric, "")
