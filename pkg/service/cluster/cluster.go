@@ -3,7 +3,6 @@ package cluster
 import (
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"muti-kube/models/cluster"
@@ -15,7 +14,7 @@ import (
 	"muti-kube/pkg/util"
 	"muti-kube/pkg/util/logger"
 	"os"
-	"path/filepath"
+	"sync"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
@@ -23,9 +22,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/util/homedir"
+)
+
+var (
+	cs     Interface
+	csOnce sync.Once
 )
 
 type service struct {
@@ -35,46 +37,33 @@ type service struct {
 }
 
 type Interface interface {
-	GetClusters(opts ...baseService.OpOption) ([]*cluster.Cluster, *int64, error)
-	GetCluster(clusterID string, opts ...baseService.OpOption) (*cluster.Cluster, error)
-	CreateCluster(clusterPost *cluster.Post) (*cluster.Cluster, error)
-	GetKubernetesClientSet(clusterID string) (k8s.Client, error)
 	GetNodesByClusterID(clusterID string) (*v1.NodeList, error)
-	GetNodeMetric(metrics []string, clusterID string, nodeName string) ([]monitoring.Metric, error)
+	GetKubernetesClientSet(clusterID string) (k8s.Client, error)
+	CreateCluster(clusterPost *cluster.Post) (*cluster.Cluster, error)
+	GetClusters(opts ...baseService.OpOption) ([]*cluster.Cluster, *int64, error)
+	GetNodeUsage(client k8s.Client, nodeName string) (usage v1.ResourceList, err error)
+	GetCluster(clusterID string, opts ...baseService.OpOption) (*cluster.Cluster, error)
+	GetNodeMetric(metrics []string, clusterID string, nodeName string, start, end time.Time, step time.Duration) ([]monitoring.Metric, error)
 }
 
 func NewClusterService() (Interface, error) {
-	return newService()
+	var err error
+	csOnce.Do(func() {
+		cs, err = newService()
+		if err != nil {
+			return
+		}
+	})
+	return cs, nil
 }
 
 func newService() (*service, error) {
-	var kubeconfig *string
-	var err error
-	var config *rest.Config
-	if home := homedir.HomeDir(); home != "" {
-		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "kubeconfig absolute path")
-	} else {
-		kubeconfig = flag.String("kubeconfig", "", "kubeconfig absolute path")
-	}
-	flag.Parse()
-
-	// 首先使用 inCluster 模式(需要去配置对应的 RBAC 权限，默认的sa是default->是没有获取deployments的List权限)
-	if config, err = rest.InClusterConfig(); err != nil {
-		// 使用 KubeConfig 文件创建集群配置 Config 对象
-		if config, err = clientcmd.BuildConfigFromFlags("", *kubeconfig); err != nil {
-			panic(err.Error())
-		}
-	}
-	clustersClientSet, err := clusterv1alpha1.NewForConfig(config)
-	if err != nil {
-		return nil, err
-	}
 	base, err := baseService.NewBase()
 	if err != nil {
 		return nil, err
 	}
 	return &service{
-		clustersClient: clustersClientSet.Clusters(),
+		clustersClient: base.GetClusterClient(),
 		ctx:            context.Background(),
 		BaseInterface:  base,
 	}, nil
@@ -96,14 +85,14 @@ func (s *service) GetClusters(opts ...baseService.OpOption) ([]*cluster.Cluster,
 	for _, item := range listItem {
 		clientSet, err := s.GetKubernetesClientSet(item.Name)
 		if err != nil {
-			return nil, nil, err
+			continue
 		}
-		nodes, err := s.getClusterNodeInfo(clientSet)
+		_, err = s.getClusterNodeInfo(clientSet)
 		if err != nil {
 			logger.Warn(err)
 			clusterSlice = append(clusterSlice, &cluster.Cluster{
-				Cluster: item,
-				Status:  baseService.SERVICEABNORMAL,
+				Cluster:      item,
+				HealthStatus: baseService.SERVICEABNORMAL,
 			})
 			continue
 		}
@@ -130,14 +119,8 @@ func (s *service) GetClusters(opts ...baseService.OpOption) ([]*cluster.Cluster,
 			memoryCapacity = 1
 		}
 		clusterSlice = append(clusterSlice, &cluster.Cluster{
-			Cluster:           item,
-			Status:            baseService.SERVICENORMAL,
-			CPUCapacity:       cpuCapacity,
-			MemoryCapacity:    memoryCapacity,
-			CPUUsage:          cpuUsage,
-			MemoryUsage:       memoryUsage,
-			CPUUtilisation:    float64(cpuUsage) / float64(cpuCapacity),
-			MemoryUtilisation: float64(memoryUsage) / float64(memoryCapacity),
+			Cluster:      item,
+			HealthStatus: baseService.SERVICENORMAL,
 		})
 	}
 	return clusterSlice, count, nil
@@ -255,7 +238,7 @@ func (s *service) getClusterNodeInfo(client k8s.Client) (*v1.NodeList, error) {
 	return client.Kubernetes().CoreV1().Nodes().List(s.ctx, metav1.ListOptions{})
 }
 
-func (s *service) getNodeUsage(client k8s.Client, nodeName string) (usage v1.ResourceList, err error) {
+func (s *service) GetNodeUsage(client k8s.Client, nodeName string) (usage v1.ResourceList, err error) {
 	metrics, err := client.Metrics().MetricsV1beta1().NodeMetricses().Get(s.ctx, nodeName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -263,7 +246,9 @@ func (s *service) getNodeUsage(client k8s.Client, nodeName string) (usage v1.Res
 	return metrics.Usage, nil
 }
 
-func (s *service) GetNodeMetric(metrics []string, clusterID string, nodeName string) ([]monitoring.Metric, error) {
+// GetNodeMetric Pass in the cluster ID, node name, and monitoring indicator to obtain the monitoring timing data of the node
+func (s *service) GetNodeMetric(metrics []string, clusterID string,
+	nodeName string, start, end time.Time, step time.Duration) ([]monitoring.Metric, error) {
 	clusterData, err := s.GetCluster(clusterID)
 	if err != nil {
 		return nil, err
@@ -273,20 +258,17 @@ func (s *service) GetNodeMetric(metrics []string, clusterID string, nodeName str
 		return nil, err
 	}
 	var queryOpts []monitoring.QueryOption
-	startTime := time.Now().Add(-time.Hour * 3)
-	endTime := time.Now()
-	stepTime := time.Second
 	queryOpts = append(queryOpts, monitoring.MeterOption{
-		Start: startTime,
-		End:   endTime,
-		Step:  stepTime,
+		Start: start,
+		End:   end,
+		Step:  step,
 	})
 	queryOpts = append(queryOpts, monitoring.NodeOption{NodeName: nodeName})
 	metricsValue := prometheusClient.GetNamedMetersOverTime(
 		metrics,
-		startTime,
-		endTime,
-		stepTime,
+		start,
+		end,
+		step,
 		queryOpts,
 	)
 	return metricsValue, nil

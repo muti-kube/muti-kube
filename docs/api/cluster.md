@@ -20,3 +20,16 @@ BASE = `/api/v1alpha1/muti-kube/clusters`
       - CPU利用率：cpu_utilisation
 
       - 内存利用率: memory_utilisation
+
+- 导入集群信息
+   
+   POST $BASE
+  
+   - request
+     ```json
+        {
+          "displayname": "集群名称",
+          "kubeconfig": "集群配置文件",
+          "prometheusurl": "集群监控地址"  
+        }    
+      ```
