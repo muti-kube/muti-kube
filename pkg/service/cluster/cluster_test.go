@@ -14,7 +14,7 @@ func TestService_GetClusters(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	clusters, err := clusterService.GetClusters()
+	clusters, _, err := clusterService.GetClusters()
 	if err != nil {
 		t.Error(err)
 		return
@@ -56,18 +56,4 @@ func TestService_GetNodesByClusterID(t *testing.T) {
 		return
 	}
 	t.Log(nodes)
-}
-
-func TestService_GetNodeMetric(t *testing.T) {
-	clusterInterface, err := NewClusterService()
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	metric, err := clusterInterface.GetNodeMetric([]string{"node_memory_utilisation"}, "cluster-1", "master")
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	t.Log(metric)
 }
