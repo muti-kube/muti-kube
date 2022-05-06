@@ -44,6 +44,26 @@ spec:
                 - kubeconfig
                 - prometheusurl
               type: object
+            status:
+              properties:
+                cpu_capacity:
+                  format: int64
+                  type: integer
+                cpu_usage:
+                  format: int64
+                  type: integer
+                memory_capacity:
+                  format: int64
+                  type: integer
+                memory_usage:
+                  format: int64
+                  type: integer
+              required:
+                - cpu_capacity
+                - cpu_usage
+                - memory_capacity
+                - memory_usage
+              type: object
           required:
             - spec
           type: object

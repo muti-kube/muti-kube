@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"muti-kube/cmd/app/config"
+	"muti-kube/pkg/periodic"
 	"muti-kube/pkg/util/logger"
 	"muti-kube/router"
 	"os"
@@ -43,8 +44,19 @@ func run() error {
 			logger.Error()
 		}
 	}()
+	go func() {
+		runPeriodic()
+	}()
 	quit := make(chan os.Signal)
 	signal.Notify(quit, os.Interrupt)
 	<-quit
 	return nil
+}
+
+func runPeriodic() {
+	ticketPeriodic, err := periodic.NewTicketPeriodic()
+	if err != nil {
+		logger.Warn(err)
+	}
+	ticketPeriodic.Start()
 }

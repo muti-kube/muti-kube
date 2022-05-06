@@ -8,3 +8,9 @@ const (
 const (
 	KubeCloudNamespace = "muti-kube"
 )
+
+const (
+	// Default page
+	DEFAULT_PAGE      = 1
+	DEFAULT_PAGE_SIZE = 500
+)

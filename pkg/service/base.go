@@ -1,47 +1,60 @@
 package service
 
 import (
-	"context"
 	"errors"
 	"flag"
 	"fmt"
 	clusterv1alpha1 "muti-kube/pkg/client/cluster/clientset/versioned/typed/cluster/v1alpha1"
 	"muti-kube/pkg/simple/client/monitoring"
 	"muti-kube/pkg/simple/client/monitoring/prometheus"
-	"muti-kube/pkg/util/logger"
 	"net/http"
 	"path/filepath"
 	"reflect"
+	"sync"
 
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 )
 
+var (
+	bsOnce sync.Once
+	bs     *base
+)
+
 type base struct {
 	ClustersClient clusterv1alpha1.ClusterInterface
-	Ctx            context.Context
 }
 
 type BaseInterface interface {
 	GetPrometheusClient(prometheusURL string) (monitoring.Interface, error)
+	GetClusterClient() clusterv1alpha1.ClusterInterface
 }
 
 func NewBase() (BaseInterface, error) {
-	return newBase()
+	bsOnce.Do(func() {
+		baseService, err := newBase()
+		if err != nil {
+			panic(err)
+			return
+		}
+		bs = baseService
+	})
+	return bs, nil
 }
 
 func newBase() (*base, error) {
 	var kubeConfig *string
+	var err error
+	var config *rest.Config
 	if home := homedir.HomeDir(); home != "" {
 		kubeConfig = flag.String("kubeConfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
 	} else {
 		kubeConfig = flag.String("kubeConfig", "", "absolute path to the kubeConfig file")
 	}
 	flag.Parse()
-	config, err := clientcmd.BuildConfigFromFlags("", *kubeConfig)
-	if err != nil {
-		logger.Error(err)
-		return nil, err
+	if config, err = clientcmd.BuildConfigFromFlags("", *kubeConfig); err != nil {
+		panic(err.Error())
 	}
 	clustersClientSet, err := clusterv1alpha1.NewForConfig(config)
 	if err != nil {
@@ -49,7 +62,6 @@ func newBase() (*base, error) {
 	}
 	return &base{
 		ClustersClient: clustersClientSet.Clusters(),
-		Ctx:            context.Background(),
 	}, nil
 }
 
@@ -81,4 +93,8 @@ func (bs *base) GetPrometheusClient(prometheusURL string) (monitoring.Interface,
 		return nil, err
 	}
 	return prometheusClient, nil
+}
+
+func (bs *base) GetClusterClient() clusterv1alpha1.ClusterInterface {
+	return bs.ClustersClient
 }
