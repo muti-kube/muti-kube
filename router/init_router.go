@@ -3,6 +3,7 @@ package router
 import (
 	"fmt"
 	"muti-kube/router/cluster"
+	"muti-kube/router/core"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,6 +18,8 @@ func baseRouterV1() *gin.Engine {
 	return r
 }
 
-func addRouter(v1 *gin.RouterGroup) {
-	cluster.RegisterClusterRouter(v1)
+func addRouter(v1alpha1 *gin.RouterGroup) {
+	cluster.RegisterClusterRouter(v1alpha1)
+	core.RegisterDeploymentRouter(v1alpha1)
 }
+
