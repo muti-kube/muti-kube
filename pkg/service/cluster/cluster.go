@@ -18,7 +18,6 @@ import (
 	"time"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -95,28 +94,6 @@ func (s *service) GetClusters(opts ...baseService.OpOption) ([]*cluster.Cluster,
 				HealthStatus: baseService.SERVICEABNORMAL,
 			})
 			continue
-		}
-		var cpuCapacity int64
-		var cpuUsage int64
-		var memoryCapacity int64
-		var memoryUsage int64
-		for _, node := range nodes.Items {
-			nodeUsage, err := s.getNodeUsage(clientSet, node.Name)
-			if err != nil {
-				logger.Warn(err)
-				continue
-			}
-			cpuCapacity += node.Status.Capacity.Cpu().ScaledValue(resource.Milli)
-			cpuUsage += nodeUsage.Cpu().ScaledValue(resource.Milli)
-			// unit M
-			memoryUsage += nodeUsage.Memory().ScaledValue(resource.Mega)
-			memoryCapacity += node.Status.Capacity.Memory().ScaledValue(resource.Mega)
-		}
-		if cpuCapacity == 0 {
-			cpuCapacity = 1
-		}
-		if memoryCapacity == 0 {
-			memoryCapacity = 1
 		}
 		clusterSlice = append(clusterSlice, &cluster.Cluster{
 			Cluster:      item,
