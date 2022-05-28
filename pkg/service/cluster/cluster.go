@@ -91,13 +91,18 @@ func (s *service) GetClusters(opts ...baseService.OpOption) ([]*cluster.Cluster,
 			logger.Warn(err)
 			clusterSlice = append(clusterSlice, &cluster.Cluster{
 				Cluster:      item,
-				HealthStatus: baseService.SERVICEABNORMAL,
+				HealthStatus: baseService.Abnormal,
 			})
+			continue
+		}
+		versionInfo, err := clientSet.Kubernetes().Discovery().ServerVersion()
+		if err != nil {
 			continue
 		}
 		clusterSlice = append(clusterSlice, &cluster.Cluster{
 			Cluster:      item,
-			HealthStatus: baseService.SERVICENORMAL,
+			Version:      versionInfo.GitVersion,
+			HealthStatus: baseService.Normal,
 		})
 	}
 	return clusterSlice, count, nil

@@ -9,6 +9,7 @@ import (
 type Cluster struct {
 	v1alpha1.Cluster
 	HealthStatus string       `json:"health_status"`
+	Version      string       `json:"version"`
 	NodeList     *v1.NodeList `json:"node_list,omitempty"`
 }
 
