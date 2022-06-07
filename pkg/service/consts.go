@@ -6,6 +6,6 @@ const (
 )
 
 const (
-	SERVICENORMAL   = "normal"
-	SERVICEABNORMAL = "abnormal"
+	Normal   = "normal"
+	Abnormal = "abnormal"
 )

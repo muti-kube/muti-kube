@@ -8,7 +8,11 @@ const (
 	ERRGETNODEMETRICS = 10004
 )
 
-// deployment api error code 
+// deployment api error code
 const (
-	ERRGETDEPLOYMENTS = 10100
+	ErrorGetDeployments   = 10100
+	ErrorCreateDeployment = 10101
+	ErrorScaleReplicasDeployment = 10102
+	ErrorDeleteDeployment = 10103
+	ErrorGetDeployment = 10104
 )
